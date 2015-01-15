@@ -1,0 +1,50 @@
+package repo;
+
+message SyncState
+{
+  required string name = 1;
+  required uint64 seq = 2;
+  enum ActionType
+  {
+    INSERT = 0;
+    DELETE = 1;
+    OTHER = 2;
+  }
+  optional ActionType type = 3;
+  optional uint64 version = 4;
+  optional string dataName = 5;
+}
+
+message SyncData
+{
+  required string dataname = 1;
+  enum status
+  {
+    EXISTED = 0;
+    DELETED = 1;
+    INSERTED = 2;
+  }
+  required status stat = 2;
+}
+
+message SyncTreeNode
+{
+  required string creatorname = 1;
+  required uint64 seq = 2;
+}
+
+message SyncStateMsg
+{
+  enum MsgType
+  {
+    ACTION = 0;
+    SNAPSHOT = 1;
+    OTHER = 2;
+  }
+  required MsgType type = 1;
+  repeated SyncState ss = 2;
+  repeated SyncData data = 3;
+  repeated SyncTreeNode node = 4;
+  optional string name = 5;
+  optional uint64 version = 6;
+}
