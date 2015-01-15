@@ -25,8 +25,6 @@
 
 namespace repo {
 
-using std::vector;
-
 class DeleteHandle : public BaseHandle
 {
 
@@ -42,10 +40,8 @@ public:
   };
 
 public:
-
   DeleteHandle(Face& face, RepoStorage& storageHandle, KeyChain& keyChain,
-               Scheduler& scheduler, ValidatorConfig& validator,
-               ActionGenerate generator = bind(&defaultActionGenerate, _1, _2));
+               Scheduler& scheduler, ValidatorConfig& validator);
 
   virtual void
   listen(const Name& prefix);
@@ -58,10 +54,10 @@ private:
   onRegisterFailed(const Name& prefix, const std::string& reason);
 
   void
-  onValidated(const shared_ptr<const Interest>& interest, const Name& prefix);
+  onValidated(const std::shared_ptr<const Interest>& interest, const Name& prefix);
 
   void
-  onValidationFailed(const shared_ptr<const Interest>& interest, const string& reason);
+  onValidationFailed(const std::shared_ptr<const Interest>& interest, const std::string& reason);
 
   /**
    * @todo delete check has not been realized due to the while loop of segmented data deletion.
@@ -90,6 +86,7 @@ private:
 
 private:
   ValidatorConfig& m_validator;
+
 };
 
 } // namespace repo

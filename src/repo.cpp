@@ -19,6 +19,7 @@
 
 #include "repo.hpp"
 #include "storage/sqlite-storage.hpp"
+
 namespace repo {
 
 RepoConfig
@@ -107,42 +108,24 @@ parseConfig(const std::string& configPath)
 
   repoConfig.nMaxPackets = repoConf.get<int>("storage.max-packets");
 
-  repoConfig.syncPrefix = repoConf.get<std::string>("syncPrefix");
-
-  std::string str = repoConf.get<std::string>("creatorName");
-
-  repoConfig.creatorName = Name(str).appendNumber(ndn::random::generateWord64());
-
   return repoConfig;
-}
-
-static void
-generateAction(RepoSync* sync, const Name& name, const std::string action)
-{
-  sync->insertAction(name, action);
 }
 
 Repo::Repo(boost::asio::io_service& ioService, const RepoConfig& config)
   : m_config(config)
   , m_scheduler(ioService)
   , m_face(ioService)
-  , m_store(make_shared<SqliteStorage>(config.dbPath))
+  , m_store(std::make_shared<SqliteStorage>(config.dbPath))
   , m_storageHandle(config.nMaxPackets, *m_store)
   , m_validator(m_face)
-  , m_sync(config.syncPrefix, config.creatorName, config.dbPath,
-           m_face, m_keyChain, m_validator, m_storageHandle)
   , m_readHandle(m_face, m_storageHandle, m_keyChain, m_scheduler)
-  , m_writeHandle(m_face, m_storageHandle, m_keyChain, m_scheduler, m_validator,
-                  bind(&generateAction, &m_sync, _1, _2))
-  , m_watchHandle(m_face, m_storageHandle, m_keyChain, m_scheduler, m_validator,
-                  bind(&generateAction, &m_sync, _1, _2))
-  , m_deleteHandle(m_face, m_storageHandle, m_keyChain, m_scheduler, m_validator,
-                   bind(&generateAction, &m_sync, _1, _2))
-  , m_tcpBulkInsertHandle(ioService, m_storageHandle, bind(&generateAction, &m_sync, _1, _2))
+  , m_writeHandle(m_face, m_storageHandle, m_keyChain, m_scheduler, m_validator)
+  , m_watchHandle(m_face, m_storageHandle, m_keyChain, m_scheduler, m_validator)
+  , m_deleteHandle(m_face, m_storageHandle, m_keyChain, m_scheduler, m_validator)
+  , m_tcpBulkInsertHandle(ioService, m_storageHandle)
 
 {
   m_validator.load(config.validatorNode, config.repoConfigPath);
-  m_scheduler.scheduleEvent(seconds(50), bind(&Repo::removeIndexEntry, this));
 }
 
 void
@@ -150,7 +133,7 @@ Repo::initializeStorage()
 {
   // Rebuild storage if storage checkpoin exists
   ndn::time::steady_clock::TimePoint start = ndn::time::steady_clock::now();
-  m_storageHandle.initialize(bind(&generateAction, &m_sync, _1, _2));
+  m_storageHandle.initialize();
   ndn::time::steady_clock::TimePoint end = ndn::time::steady_clock::now();
   ndn::time::milliseconds cost = ndn::time::duration_cast<ndn::time::milliseconds>(end - start);
   std::cerr << "initialize storage cost: " << cost << "ms" << std::endl;
@@ -160,7 +143,7 @@ void
 Repo::enableListening()
 {
   // Enable "listening" on Data prefixes
-  for (vector<ndn::Name>::iterator it = m_config.dataPrefixes.begin();
+  for (auto it = m_config.dataPrefixes.begin();
        it != m_config.dataPrefixes.end();
        ++it)
     {
@@ -168,18 +151,17 @@ Repo::enableListening()
     }
 
   // Enable "listening" on control prefixes
-  for (vector<ndn::Name>::iterator it = m_config.repoPrefixes.begin();
+  for (auto it = m_config.repoPrefixes.begin();
        it != m_config.repoPrefixes.end();
        ++it)
     {
       m_writeHandle.listen(*it);
       m_watchHandle.listen(*it);
       m_deleteHandle.listen(*it);
-      m_sync.listen(*it);
     }
 
   // Enable listening on TCP bulk insert addresses
-  for (vector<pair<string, string> >::iterator it = m_config.tcpBulkInsertEndpoints.begin();
+  for (auto it = m_config.tcpBulkInsertEndpoints.begin();
        it != m_config.tcpBulkInsertEndpoints.end();
        ++it)
     {
@@ -191,13 +173,6 @@ void
 Repo::enableValidation()
 {
   m_validator.load(m_config.validatorNode, m_config.repoConfigPath);
-}
-
-void
-Repo::removeIndexEntry()
-{
-  m_storageHandle.removeDeletedEntry();
-  m_scheduler.scheduleEvent(seconds(50), bind(&Repo::removeIndexEntry, this));
 }
 
 } // namespace repo

@@ -55,7 +55,7 @@ public:
    *  @brief  rebuild index from database
    */
   void
-  initialize(const ndn::function< void (const Name &,const std::string & ) >& generateAction);
+  initialize();
 
   /**
    *  @brief  insert data into repo
@@ -84,33 +84,14 @@ public:
   /**
    *  @brief  read data from repo
    *  @param   interest  used to request data
-   *  @return  std::pair<bool,shared_ptr<Data> >
+   *  @return  std::shared_ptr<Data>
    */
-  shared_ptr<Data>
+  std::shared_ptr<Data>
   readData(const Interest& interest) const;
-
-  status
-  getDataStatus(const Name& name) const
-  {
-    return m_index.getStatus(name);
-  }
-
-  void
-  dataEnumeration(ndn::function< void (const Name &, const status &) > f) const;
-
-  void
-  removeDeletedEntry();
-
-  const size_t
-  size() const
-  {
-    return m_index.size();
-  }
 
 private:
   Index m_index;
   Storage& m_storage;
-
 };
 
 } // namespace repo

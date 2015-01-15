@@ -17,13 +17,15 @@
  * repo-ng, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
+#include "../../build/src/config.hpp"
 #include "sqlite-storage.hpp"
 #include "index.hpp"
 #include <boost/filesystem.hpp>
 #include <istream>
 
 namespace repo {
+
+using std::string;
 
 SqliteStorage::SqliteStorage(const string& dbPath)
   : m_size(0)

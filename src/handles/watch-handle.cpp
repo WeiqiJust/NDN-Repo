@@ -25,8 +25,8 @@ static const milliseconds PROCESS_DELETE_TIME(10000);
 static const milliseconds DEFAULT_INTEREST_LIFETIME(4000);
 
 WatchHandle::WatchHandle(Face& face, RepoStorage& storageHandle, KeyChain& keyChain,
-                         Scheduler& scheduler, ValidatorConfig& validator, ActionGenerate generator)
-  : BaseHandle(face, storageHandle, keyChain, scheduler, generator)
+                         Scheduler& scheduler, ValidatorConfig& validator)
+  : BaseHandle(face, storageHandle, keyChain, scheduler)
   , m_validator(validator)
   , m_interestNum(0)
   , m_maxInterestNum(0)
@@ -98,7 +98,8 @@ void WatchHandle::watchStop(const Name& name)
 }
 
 void
-WatchHandle::onValidationFailed(const shared_ptr<const Interest>& interest, const string& reason)
+WatchHandle::onValidationFailed(const shared_ptr<const Interest>& interest,
+                                const std::string& reason)
 {
   std::cerr << reason << std::endl;
   negativeReply(*interest, 401);
@@ -120,7 +121,6 @@ WatchHandle::onDataValidated(const Interest& interest, const shared_ptr<const Da
     return;
   }
   if (getStorageHandle().insertData(*data)) {
-    m_generator(data->getName(), "insertion");
     m_size++;
     if (!onRunning(name))
       return;

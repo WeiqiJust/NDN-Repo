@@ -19,11 +19,9 @@
 
 #ifndef REPO_STORAGE_SKIPLIST_HPP
 #define REPO_STORAGE_SKIPLIST_HPP
-
 #include "common.hpp"
 
 namespace repo {
-
 class SkipList32Levels25Probabilty
 {
 public:
@@ -45,8 +43,8 @@ struct SkipListNode
 {
   typedef SkipListNode<T>* SkipListNodePointer;
   T data;
-  std::vector<SkipListNodePointer> prevs;
-  std::vector<SkipListNodePointer> nexts;
+  std::list<SkipListNodePointer> prevs;
+  std::list<SkipListNodePointer> nexts;
 };
 
 template<typename T, class Ref, class Ptr>
@@ -109,7 +107,7 @@ public:
   Self&
   operator++()
   {
-    node = node->nexts[0];
+    node = node->nexts.front();
     return *this;
   }
 
@@ -124,7 +122,7 @@ public:
   Self&
   operator--()
   {
-    node = node->prevs[0];
+    node = node->prevs.front();
     return *this;
   }
 
@@ -172,6 +170,7 @@ public:
   typedef SkipListIterator<T, const T&, const T*> const_iterator;
   /// alias of const_iterator
   typedef const_iterator iterator;
+  typedef SkipListNode<T>* SkipListNodePointer;
 
 public:
   explicit
@@ -183,7 +182,7 @@ public:
   ~SkipList()
   {
     clear();
-    deallocateNode(m_head);
+    delete(m_head);
   }
 
   const_iterator
@@ -223,23 +222,6 @@ public:
   erase(const_iterator it);
 
 protected:
-  /*
-   * @brief allocate memory for node
-   */
-  NodePointer
-  allocateNode()
-  {
-    return m_skiplistAllocator.allocate(sizeof(Node));
-  }
-
-  /*
-   * @brief deallocate memory of node
-   */
-  void
-  deallocateNode(NodePointer p)
-  {
-    m_skiplistAllocator.deallocate(p, sizeof(Node));
-  }
 
   /*
    * @brief initialize the node
@@ -247,9 +229,7 @@ protected:
   NodePointer
   createNode()
   {
-    NodePointer p = allocateNode();
-    Node node;
-    m_skiplistAllocator.construct(p, node);
+    NodePointer p = new Node;
     return p;
   }
 
@@ -260,9 +240,7 @@ protected:
   NodePointer
   createNode(const T& x)
   {
-    NodePointer p = allocateNode();
-    Node node;
-    m_skiplistAllocator.construct(p, node);
+    NodePointer p = new Node;
     m_dataAllocator.construct(&(p->data), x);
     return p;
   }
@@ -274,8 +252,7 @@ protected:
   void
   destroyNode(NodePointer p)
   {
-    m_skiplistAllocator.destroy(p);
-    deallocateNode(p);
+    delete(p);
   }
 
   /*
@@ -296,14 +273,14 @@ protected:
   void
   clear()
   {
-    NodePointer cur = m_head->nexts[0];
+    NodePointer cur = m_head->nexts.front();
     while (cur != m_head) {
       NodePointer tmp = cur;
-      cur = cur->nexts[0];
+      cur = cur->nexts.front();
       destroyNode(tmp);
     }
-    m_head->nexts[0] = m_head;
-    m_head->prevs[0] = m_head;
+    m_head->nexts.front() = m_head;
+    m_head->prevs.front() = m_head;
   }
 
   /*
@@ -319,7 +296,6 @@ protected:
 
 protected:
   NodePointer m_head;
-  std::allocator<Node> m_skiplistAllocator;
   std::allocator<T> m_dataAllocator;
   Compare m_compare;
   size_t m_size;
@@ -332,13 +308,21 @@ SkipList<T, Compare, Traits>::lower_bound(const T& x) const
 {
   size_t nLevels = m_head->nexts.size();
   NodePointer p = m_head;
-  NodePointer q = p->nexts[nLevels - 1];
+  NodePointer q = p->nexts.back();
   for (int i = nLevels - 1; i >= 0; --i) {
-    q = p->nexts[i];
+    typename std::list<SkipListNodePointer>::iterator it_p = p->nexts.begin();
+    for (int j = 0; j < i; j++) {
+      it_p++;
+    }
+    q = *it_p;
     if (q != m_head) {
       while (m_compare(q->data, x)) {
-        p = p->nexts[i];
-        q = p->nexts[i];
+        p = *it_p;
+        it_p = p->nexts.begin();
+        for (int j = 0; j < i; j++) {
+          it_p++;
+        }
+        q = *it_p;
         if (q == m_head) {
           break;
         }
@@ -366,13 +350,21 @@ SkipList<T, Compare, Traits>::insert(const T& x)
   // 1. find insert position
   std::vector<NodePointer> insertPositions(nLevels);
   NodePointer p = m_head;
-  NodePointer q = p->nexts[nLevels - 1];
+  NodePointer q = p->nexts.back();
   for (int i = nLevels - 1; i >= 0; --i) {
-    q = p->nexts[i];
+    typename std::list<SkipListNodePointer>::iterator it_p = p->nexts.begin();
+    for (int j = 0; j < i; j++) {
+      it_p++;
+    }
+    q = *it_p;
     if (q != m_head) {
       while (m_compare(q->data, x)) {
-        p = p->nexts[i];
-        q = p->nexts[i];
+        p = *it_p;
+        it_p = p->nexts.begin();
+        for (int j = 0; j < i; j++) {
+          it_p++;
+        }
+        q = *it_p;
         if (q == m_head) {
           break;
         }
@@ -397,11 +389,37 @@ SkipList<T, Compare, Traits>::insert(const T& x)
     m_head->prevs.resize(newLevel + 1, m_head);
     insertPositions.resize(newLevel + 1, m_head);
   }
-  for (int i = 0; i <= newLevel; i++) {
-    newNode->nexts[i] = insertPositions[i]->nexts[i];
-    newNode->prevs[i] = insertPositions[i];
-    insertPositions[i]->nexts[i] = newNode;
-    newNode->nexts[i]->prevs[i] = newNode;
+  for (size_t i = 0; i <= newLevel; i++) {
+    typename std::list<SkipListNodePointer>::iterator it_newNode_next = newNode->nexts.begin();
+    for (size_t j = 0; j < i; j++) {
+      it_newNode_next++;
+    }
+    typename std::list<SkipListNodePointer>::iterator it_insert_next = insertPositions[i]->nexts.begin();
+    for (size_t j = 0; j < i; j++) {
+      it_insert_next++;
+    }
+    *it_newNode_next = *it_insert_next;
+
+    typename std::list<SkipListNodePointer>::iterator it_newNode_prev = newNode->prevs.begin();
+    for (size_t j = 0; j < i; j++) {
+      it_newNode_prev++;
+    }
+    *it_newNode_prev = insertPositions[i];
+
+    it_insert_next = insertPositions[i]->nexts.begin();
+    for (size_t j = 0; j < i; j++) {
+      it_insert_next++;
+    }
+    *it_insert_next = newNode;
+    it_newNode_next = newNode->nexts.begin();
+    for (size_t j = 0; j < i; j++) {
+      it_newNode_next++;
+    }
+    typename std::list<SkipListNodePointer>::iterator it_newNode_next_prev = (*it_newNode_next)->prevs.begin();
+    for (size_t j = 0; j < i; j++) {
+      it_newNode_next_prev++;
+    }
+    *it_newNode_next_prev = newNode;
   }
 
   ++m_size;
@@ -414,13 +432,33 @@ SkipList<T, Compare, Traits>::erase(typename SkipList<T, Compare, Traits>::const
 {
   NodePointer eraseNode = it.node;
   if (!empty() && eraseNode != m_head) {
-    NodePointer returnNode = eraseNode->nexts[0];
+    NodePointer returnNode = eraseNode->nexts.front();
     size_t nLevels = eraseNode->nexts.size();
     for (int i = nLevels - 1; i >= 0; --i) {
-      eraseNode->nexts[i]->prevs[i] = eraseNode->prevs[i];
-      eraseNode->prevs[i]->nexts[i] = eraseNode->nexts[i];
+      typename std::list<SkipListNodePointer>::iterator it_erase_next = eraseNode->nexts.begin();
+      for (int j = 0; j < i; j++) {
+        it_erase_next++;
+      }
+
+      typename std::list<SkipListNodePointer>::iterator it_erase_next_prev = (*it_erase_next)->prevs.begin();
+      for (int j = 0; j < i; j++) {
+        it_erase_next_prev++;
+      }
+
+      typename std::list<SkipListNodePointer>::iterator it_erase_prev = eraseNode->prevs.begin();
+      for (int j = 0; j < i; j++) {
+        it_erase_prev++;
+      }
+      *it_erase_next_prev = *it_erase_prev;
+
+      typename std::list<SkipListNodePointer>::iterator it_erase_prev_next = (*it_erase_prev)->nexts.begin();
+      for (int j = 0; j < i; j++) {
+        it_erase_prev_next++;
+      }
+
+      *it_erase_prev_next = *it_erase_next;
       // clear empty nLevels
-      if ((eraseNode->nexts[i] == eraseNode->prevs[i]) && i > 0) {
+      if ((*it_erase_next == *it_erase_prev) && i > 0) {
         m_head->nexts.pop_back();
         m_head->prevs.pop_back();
       }
@@ -434,6 +472,6 @@ SkipList<T, Compare, Traits>::erase(typename SkipList<T, Compare, Traits>::const
   }
 }
 
-} // namespace repo
+} //end namespace repo
 
 #endif // REPO_STORAGE_SKIPLIST_HPP

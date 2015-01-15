@@ -32,8 +32,6 @@ static bool
 matchesSimpleSelectors(const Interest& interest, ndn::ConstBufferPtr& hash,
                        const Index::Entry& entry)
 {
-  if (entry.getStatus() == DELETED)
-    return false;
   const Name& fullName = entry.getName();
 
   if (!interest.getName().isPrefixOf(fullName))
@@ -65,14 +63,6 @@ Index::Index(const size_t nMaxPackets)
 {
 }
 
-void
-Index::entryEnumeration(ndn::function< void (const Name &, const status &) > f) const
-{
-  for (IndexSkipList::const_iterator iter = m_skipList.begin(); iter != m_skipList.end(); ++iter)
-  {
-    f(iter->getName(), iter->getStatus());
-  }
-}
 
 bool
 Index::insert(const Data& data, const int64_t id)
@@ -80,16 +70,7 @@ Index::insert(const Data& data, const int64_t id)
   if (isFull())
     throw Error("The Index is Full. Cannot Insert Any Data!");
   Entry entry(data, id);
-  IndexSkipList::const_iterator result = m_skipList.find(entry);
-  bool isInserted = false;
-  if (result == m_skipList.end()) {
-    isInserted = m_skipList.insert(entry).second;
-  }
-  else if (result->getStatus() == DELETED) {
-    m_skipList.erase(result);
-    entry.setStatus(INSERTED);
-    isInserted = m_skipList.insert(entry).second;
-  }
+  bool isInserted = m_skipList.insert(entry).second;
   if (isInserted)
     ++m_size;
   return isInserted;
@@ -102,16 +83,7 @@ Index::insert(const Name& fullName, const int64_t id,
   if (isFull())
     throw Error("The Index is Full. Cannot Insert Any Data!");
   Entry entry(fullName, keyLocatorHash, id);
-  IndexSkipList::const_iterator result = m_skipList.find(entry);
-  bool isInserted = false;
-  if (result == m_skipList.end()) {
-    isInserted = m_skipList.insert(entry).second;
-  }
-  else if (result->getStatus() == DELETED) {
-    m_skipList.erase(result);
-    entry.setStatus(INSERTED);
-    isInserted = m_skipList.insert(entry).second;
-  }
+  bool isInserted = m_skipList.insert(entry).second;
   if (isInserted)
     ++m_size;
   return isInserted;
@@ -146,24 +118,13 @@ Index::find(const Name& name) const
     }
 }
 
-status
-Index::getStatus(const Name& name) const
-{
-  IndexSkipList::const_iterator result = m_skipList.lower_bound(name);
-  if (result == m_skipList.end())
-    return NONE;
-  if (name.isPrefixOf(result->getName()))
-    return result->getStatus();
-  else
-    return NONE;
-}
-
 bool
 Index::hasData(const Data& data) const
 {
   Index::Entry entry(data, -1); // the id number is useless
   IndexSkipList::const_iterator result = m_skipList.find(entry);
-  return result != m_skipList.end() && result->getStatus() != DELETED;
+  return result != m_skipList.end();
+
 }
 
 std::pair<int64_t,Name>
@@ -171,19 +132,14 @@ Index::findFirstEntry(const Name& prefix,
                       IndexSkipList::const_iterator startingPoint) const
 {
   BOOST_ASSERT(startingPoint != m_skipList.end());
-  for (IndexSkipList::const_iterator iter = startingPoint; iter != m_skipList.end(); iter++) {
-    if (iter->getStatus() == DELETED)
-      continue;
-    if (prefix.isPrefixOf(iter->getName()))
+  if (prefix.isPrefixOf(startingPoint->getName()))
     {
-      return std::make_pair(iter->getId(), iter->getName());
+      return std::make_pair(startingPoint->getId(), startingPoint->getName());
     }
-    else
+  else
     {
       return std::make_pair(0, Name());
     }
-  }
-  return std::make_pair(0, Name());
 }
 
 bool
@@ -193,29 +149,12 @@ Index::erase(const Name& fullName)
   IndexSkipList::const_iterator findIterator = m_skipList.find(entry);
   if (findIterator != m_skipList.end())
     {
-      Entry remove(*findIterator);
-      remove.setStatus(DELETED);
       m_skipList.erase(findIterator);
-      if (!m_skipList.insert(remove).second)
-        throw Error("Delete Entry: Cannot change status!");
       m_size--;
       return true;
     }
   else
     return false;
-}
-
-void
-Index::removeDeletedEntry()
-{
-  IndexSkipList::const_iterator iter = m_skipList.begin();
-  while(iter != m_skipList.end()) {
-    if (iter->getStatus() == DELETED) {
-      iter = m_skipList.erase(iter);
-      continue;
-    }
-    iter++;
-  }
 }
 
 const ndn::ConstBufferPtr
@@ -245,8 +184,6 @@ Index::selectChild(const Interest& interest,
       for (IndexSkipList::const_iterator it = startingPoint;
            it != m_skipList.end(); ++it)
         {
-          if (it->getStatus() == DELETED)
-            continue;
           if (!interest.getName().isPrefixOf(it->getName()))
             return std::make_pair(0, Name());
           if (matchesSimpleSelectors(interest, hash, (*it)))
@@ -256,20 +193,16 @@ Index::selectChild(const Interest& interest,
   else
     {
       IndexSkipList::const_iterator boundary = m_skipList.lower_bound(interest.getName());
-      while (boundary != m_skipList.end() && boundary->getStatus() == DELETED)
-        boundary++;
       if (boundary == m_skipList.end() || !interest.getName().isPrefixOf(boundary->getName()))
         return std::make_pair(0, Name());
       Name successor = interest.getName().getSuccessor();
       IndexSkipList::const_iterator last = interest.getName().size() == 0 ?
                     m_skipList.end() : m_skipList.lower_bound(interest.getName().getSuccessor());
-      while (last != m_skipList.end() && last->getStatus() == DELETED)
-        last++;
       while (true)
         {
           IndexSkipList::const_iterator prev = last;
           --prev;
-          if (prev == boundary && prev->getStatus() != DELETED)
+          if (prev == boundary)
             {
               bool isMatch = matchesSimpleSelectors(interest, hash, (*prev));
               if (isMatch)
@@ -281,8 +214,6 @@ Index::selectChild(const Interest& interest,
             }
           IndexSkipList::const_iterator first =
             m_skipList.lower_bound(prev->getName().getPrefix(interest.getName().size() + 1));
-          while (first != m_skipList.end() && first->getStatus() == DELETED)
-            first++;
           IndexSkipList::const_iterator match =
                      std::find_if(first, last, bind(&matchesSimpleSelectors, interest, hash, _1));
           if (match != last)
@@ -298,7 +229,6 @@ Index::selectChild(const Interest& interest,
 Index::Entry::Entry(const Data& data, const int64_t id)
   : m_name(data.getFullName())
   , m_id(id)
-  , m_status(EXISTED)
 {
   const ndn::Signature& signature = data.getSignature();
   if (signature.hasKeyLocator())
@@ -309,7 +239,6 @@ Index::Entry::Entry(const Name& fullName, const KeyLocator& keyLocator, const in
   : m_name(fullName)
   , m_keyLocatorHash(computeKeyLocatorHash(keyLocator))
   , m_id(id)
-  , m_status(EXISTED)
 {
 }
 
@@ -318,13 +247,11 @@ Index::Entry::Entry(const Name& fullName,
   : m_name(fullName)
   , m_keyLocatorHash(keyLocatorHash)
   , m_id(id)
-  , m_status(EXISTED)
 {
 }
 
 Index::Entry::Entry(const Name& name)
   : m_name(name)
-  , m_status(EXISTED)
 {
 }
 

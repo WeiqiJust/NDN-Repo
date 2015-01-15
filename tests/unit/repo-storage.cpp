@@ -40,9 +40,9 @@ class Fixture : public Dataset, public RepoStorageFixture
 typedef boost::mpl::push_back<CommonDatasets,
                               ComplexSelectorsDataset>::type Datasets;
 
-
 BOOST_FIXTURE_TEST_CASE_TEMPLATE(Bulk, T, Datasets, Fixture<T>)
 {
+  // typedef ComplexSelectorsDataset T;
   BOOST_TEST_MESSAGE(T::getName());
 
   // Insert data into repo

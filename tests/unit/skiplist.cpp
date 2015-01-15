@@ -111,18 +111,27 @@ BOOST_AUTO_TEST_CASE(Correctness)
 
   // erase
   it1 = sl.erase(sl.begin());
+  it1 = sl.begin();
   // contents: [30,20,10,5]
   BOOST_CHECK_EQUAL(*it1, 30);
+  ++it1;
+  BOOST_CHECK_EQUAL(*it1, 20);
+  ++it1;
+  BOOST_CHECK_EQUAL(*it1, 10);
+  ++it1;
+  BOOST_CHECK_EQUAL(*it1, 5);
+  ++it1;
+  BOOST_CHECK(it1 == sl.end());
   BOOST_CHECK_EQUAL(sl.size(), 4);
   it2 = sl.end();
   --it2;
   it1 = sl.erase(it2);
   // contents: [30,20,10]
-  BOOST_CHECK(it1 == sl.end());
   BOOST_CHECK_EQUAL(sl.size(), 3);
   it2 = sl.lower_bound(20);
   it1 = sl.erase(it2);
   // contents: [30,10]
+
   BOOST_CHECK_EQUAL(*it1, 10);
   BOOST_CHECK_EQUAL(sl.size(), 2);
   it3 = it1;

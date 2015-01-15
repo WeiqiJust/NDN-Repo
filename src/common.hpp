@@ -43,12 +43,15 @@
 #include <list>
 #include <algorithm>
 #include <iostream>
+#include <functional>
+#include <memory>
 
 namespace repo {
 
 using ndn::Face;
 using ndn::Block;
 using ndn::Name;
+namespace name = ndn::name;
 using ndn::Interest;
 using ndn::Selectors;
 using ndn::Exclude;
@@ -58,13 +61,11 @@ using ndn::KeyChain;
 using ndn::Scheduler;
 using ndn::ValidatorConfig;
 
-using ndn::bind;
-using ndn::shared_ptr;
-using ndn::make_shared;
-using ndn::enable_shared_from_this;
-
-using std::vector;
-using std::string;
+using std::shared_ptr;
+using std::make_shared;
+using std::bind;
+using std::placeholders::_1;
+using std::placeholders::_2;
 
 using boost::noncopyable;
 

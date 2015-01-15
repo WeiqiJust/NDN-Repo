@@ -41,15 +41,8 @@ public:
   };
 
 public:
-  typedef ndn::function< void (const Name &, const std::string & ) > ActionGenerate;
-
   TcpBulkInsertHandle(boost::asio::io_service& ioService,
-                      RepoStorage& storageHandle, ActionGenerate generator);
-
-  /**
-   * @brief this constructor is used for test without sync
-   */
-  TcpBulkInsertHandle(boost::asio::io_service& ioService, RepoStorage& storageHandle);
+                      RepoStorage& storageHandle);
 
   void
   listen(const std::string& host, const std::string& port);
@@ -63,13 +56,10 @@ public:
     return m_storageHandle;
   }
 
-public:
-  ActionGenerate m_generator;
-
 private:
   void
   handleAccept(const boost::system::error_code& error,
-               const shared_ptr<boost::asio::ip::tcp::socket>& socket);
+               const std::shared_ptr<boost::asio::ip::tcp::socket>& socket);
 
 private:
   boost::asio::ip::tcp::acceptor m_acceptor;

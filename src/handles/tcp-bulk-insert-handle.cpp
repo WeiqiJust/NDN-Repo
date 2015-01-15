@@ -66,14 +66,6 @@ private:
 } // namespace detail
 
 TcpBulkInsertHandle::TcpBulkInsertHandle(boost::asio::io_service& ioService,
-                                         RepoStorage& storageHandle, ActionGenerate generator)
-  : m_generator(generator)
-  , m_acceptor(ioService)
-  , m_storageHandle(storageHandle)
-{
-}
-
-TcpBulkInsertHandle::TcpBulkInsertHandle(boost::asio::io_service& ioService,
                                          RepoStorage& storageHandle)
   : m_acceptor(ioService)
   , m_storageHandle(storageHandle)
@@ -179,15 +171,13 @@ detail::TcpBulkInsertClient::handleReceive(const boost::system::error_code& erro
       offset += element.size();
       BOOST_ASSERT(offset <= m_inputBufferSize);
 
-      if (element.type() == ndn::Tlv::Data)
+      if (element.type() == ndn::tlv::Data)
         {
           try {
             Data data(element);
             bool isOk = m_writer.getStorageHandle().insertData(data);
-            if (isOk) {
+            if (isOk)
               std::cerr << "Successfully injected " << data.getName() << std::endl;
-              m_writer.m_generator(data.getName(), "insertion");
-            }
             else
               std::cerr << "FAILED to inject " << data.getName() << std::endl;
           }

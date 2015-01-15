@@ -24,11 +24,9 @@
 namespace repo {
 
 static void
-insertItemToIndex(Index* index, const Storage::ItemMeta& item,
-                  const ndn::function< void (const Name &,const std::string & ) >& generateAction)
+insertItemToIndex(Index* index, const Storage::ItemMeta& item)
 {
   index->insert(item.fullName, item.id, item.keyLocatorHash);
-  generateAction(item.fullName, "insertion");
 }
 
 RepoStorage::RepoStorage(const int64_t& nMaxPackets, Storage& store)
@@ -38,9 +36,9 @@ RepoStorage::RepoStorage(const int64_t& nMaxPackets, Storage& store)
 }
 
 void
-RepoStorage::initialize(const ndn::function< void (const Name &,const std::string & ) >& generateAction)
+RepoStorage::initialize()
 {
-  m_storage.fullEnumerate(bind(&insertItemToIndex, &m_index, _1, generateAction));
+  m_storage.fullEnumerate(bind(&insertItemToIndex, &m_index, _1));
 }
 
 bool
@@ -114,16 +112,5 @@ RepoStorage::readData(const Interest& interest) const
   return shared_ptr<Data>();
 }
 
-void
-RepoStorage::dataEnumeration(ndn::function< void (const Name &, const status&) > f) const
-{
-  m_index.entryEnumeration(f);
-}
-
-void
-RepoStorage::removeDeletedEntry()
-{
-  m_index.removeDeletedEntry();
-}
 
 } // namespace repo

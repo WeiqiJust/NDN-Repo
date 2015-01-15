@@ -28,11 +28,6 @@
 
 namespace repo {
 
-inline static void
-defaultActionGenerate(const Name& name, const std::string& str)
-{
-}
-
 class BaseHandle : noncopyable
 {
 public:
@@ -47,16 +42,13 @@ public:
   };
 
 public:
-
-  typedef ndn::function< void (const Name &, const std::string & ) > ActionGenerate;
-
   BaseHandle(Face& face, RepoStorage& storageHandle, KeyChain& keyChain,
-             Scheduler& scheduler, ActionGenerate generator = bind(&defaultActionGenerate, _1, _2))
-    : m_generator(generator)
-    , m_face(face)
+             Scheduler& scheduler)
+    : m_face(face)
     , m_storageHandle(storageHandle)
     , m_keyChain(keyChain)
     , m_scheduler(scheduler)
+   // , m_storeindex(storeindex)
   {
   }
 
@@ -106,21 +98,19 @@ protected:
   void
   extractParameter(const Interest& interest, const Name& prefix, RepoCommandParameter& parameter);
 
-protected:
-  ActionGenerate m_generator;
-
 private:
 
   Face& m_face;
   RepoStorage& m_storageHandle;
   KeyChain& m_keyChain;
   Scheduler& m_scheduler;
+ // RepoStorage& m_storeindex;
 };
 
 inline void
 BaseHandle::reply(const Interest& commandInterest, const RepoCommandResponse& response)
 {
-  shared_ptr<Data> rdata = make_shared<Data>(commandInterest.getName());
+  std::shared_ptr<Data> rdata = std::make_shared<Data>(commandInterest.getName());
   rdata->setContent(response.wireEncode());
   m_keyChain.sign(*rdata);
   m_face.put(*rdata);
@@ -132,7 +122,6 @@ BaseHandle::extractParameter(const Interest& interest, const Name& prefix,
 {
   parameter.wireDecode(interest.getName().get(prefix.size()).blockFromValue());
 }
-
 
 } // namespace repo
 

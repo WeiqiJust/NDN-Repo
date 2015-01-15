@@ -26,14 +26,6 @@
 
 namespace repo {
 
-enum status
-{
-  EXISTED,
-  DELETED,
-  INSERTED,
-  NONE
-};
-
 class Index : noncopyable
 {
 public:
@@ -121,18 +113,6 @@ public:
       return m_id;
     }
 
-    const status
-    getStatus() const
-    {
-      return m_status;
-    }
-
-    void
-    setStatus(const status& stat)
-    {
-      m_status = stat;
-    }
-
     bool
     operator>(const Entry& entry) const
     {
@@ -161,7 +141,6 @@ public:
     Name m_name;
     ndn::ConstBufferPtr m_keyLocatorHash;
     int64_t m_id;
-    status m_status;
   };
 
 private:
@@ -171,9 +150,6 @@ private:
 public:
   explicit
   Index(const size_t nMaxPackets);
-
-  void
-  entryEnumeration(ndn::function< void (const Name &, const status &) > f) const;
 
   /**
    *  @brief insert entries into index
@@ -185,9 +161,8 @@ public:
 
   /**
    *  @brief insert entries into index
-   *  @param  fullname       fullname with digest used to construct entries
-   *  @param  id             obtained from database
-   *  @param  keyLocatorHash hash value of keylocator
+   *  @param  data    used to construct entries
+   *  @param  id      obtained from database
    */
   bool
   insert(const Name& fullName, const int64_t id,
@@ -211,21 +186,12 @@ public:
   std::pair<int64_t, Name>
   find(const Name& name) const;
 
-  /** @brief get the status of the entry with fullname
-   * @param  name  full name of the entry
-   */
-  status
-  getStatus(const Name& name) const;
-
   /**
    *  @brief determine whether same Data is already in the index
    *  @return true if identical Data exists, false otherwise
    */
   bool
   hasData(const Data& data) const;
-
-  void
-  removeDeletedEntry();
 
   /**
     *  @brief compute the hash value of keyLocator

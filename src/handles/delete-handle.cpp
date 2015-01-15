@@ -23,8 +23,8 @@ namespace repo {
 
 DeleteHandle::DeleteHandle(Face& face, RepoStorage& storageHandle, KeyChain& keyChain,
                            Scheduler& scheduler,// RepoStorage& storeindex,
-                           ValidatorConfig& validator, ActionGenerate generator)
-  : BaseHandle(face, storageHandle, keyChain, scheduler, generator)
+                           ValidatorConfig& validator)
+  : BaseHandle(face, storageHandle, keyChain, scheduler)
   , m_validator(validator)
 {
 }
@@ -35,6 +35,7 @@ DeleteHandle::onInterest(const Name& prefix, const Interest& interest)
   m_validator.validate(interest, bind(&DeleteHandle::onValidated, this, _1, prefix),
                        bind(&DeleteHandle::onValidationFailed, this, _1, _2));
 }
+
 
 void
 DeleteHandle::onRegisterFailed(const Name& prefix, const std::string& reason)
@@ -91,12 +92,12 @@ DeleteHandle::onValidated(const shared_ptr<const Interest>& interest, const Name
 }
 
 void
-DeleteHandle::onValidationFailed(const shared_ptr<const Interest>& interest, const string& reason)
+DeleteHandle::onValidationFailed(const shared_ptr<const Interest>& interest,
+                                 const std::string& reason)
 {
   std::cerr << reason << std::endl;
   negativeReply(*interest, 401);
 }
-
 //listen change the setinterestfilter
 void
 DeleteHandle::listen(const Name& prefix)
@@ -143,7 +144,6 @@ DeleteHandle::processSingleDeleteCommand(const Interest& interest,
   }
   else
     positiveReply(interest, parameter, 200, nDeletedDatas);
-    m_generator(parameter.getName(), "deletion");
 }
 
 void
@@ -159,7 +159,6 @@ DeleteHandle::processSelectorDeleteCommand(const Interest& interest,
   }
   else
     positiveReply(interest, parameter, 200, nDeletedDatas);
-    m_generator(parameter.getName(), "deletion");
 }
 
 void
@@ -185,7 +184,6 @@ DeleteHandle::processSegmentDeleteCommand(const Interest& interest,
       name.appendSegment(i);
       if (getStorageHandle().deleteData(name)) {
         nDeletedDatas++;
-        m_generator(name, "deletion");
       }
     }
     //All the data deleted, return 200

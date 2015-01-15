@@ -6,7 +6,7 @@ from waflib import Build, Logs, Utils, Task, TaskGen, Configure
 
 def options(opt):
     opt.load('compiler_c compiler_cxx gnu_dirs')
-    opt.load('boost default-compiler-flags doxygen sqlite3 protoc', tooldir=['.waf-tools'])
+    opt.load('boost default-compiler-flags doxygen sqlite3', tooldir=['.waf-tools'])
 
     ropt = opt.add_option_group('ndn-repo-ng Options')
 
@@ -20,7 +20,7 @@ def options(opt):
 
 def configure(conf):
     conf.load("compiler_c compiler_cxx gnu_dirs boost default-compiler-flags sqlite3")
-    conf.load('protoc')
+
     conf.check_cfg(package='libndn-cxx', args=['--cflags', '--libs'],
                    uselib_store='NDN_CXX', mandatory=True)
 
@@ -32,7 +32,7 @@ def configure(conf):
     conf.env['WITH_TOOLS'] = conf.options.with_tools
     conf.env['WITH_EXAMPLES'] = conf.options.with_examples
 
-    USED_BOOST_LIBS = ['system', 'iostreams', 'filesystem']
+    USED_BOOST_LIBS = ['system', 'iostreams', 'filesystem', 'random']
     if conf.env['WITH_TESTS']:
         USED_BOOST_LIBS += ['unit_test_framework']
     conf.check_boost(lib=USED_BOOST_LIBS, mandatory=True)
@@ -53,11 +53,11 @@ def build(bld):
     bld(target="ndn-repo-objects",
         name="ndn-repo-objects",
         features=["cxx"],
-        source=bld.path.ant_glob(['src/**/*.cpp', 'src/**/*.proto'],
+        source=bld.path.ant_glob(['src/**/*.cpp'],
                                  excl=['src/main.cpp']),
         use='NDN_CXX BOOST SQLITE3',
-        includes="src/sync src",
-        export_includes="src/sync src",
+        includes="src",
+        export_includes="src",
         )
 
     bld(target="ndn-repo-ng",

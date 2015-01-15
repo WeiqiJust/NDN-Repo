@@ -21,6 +21,7 @@
 #define REPO_REPO_COMMAND_PARAMETER_HPP
 
 #include <ndn-cxx/encoding/encoding-buffer.hpp>
+#include <ndn-cxx/encoding/block-helpers.hpp>
 #include <ndn-cxx/name.hpp>
 #include <ndn-cxx/selectors.hpp>
 #include "repo-tlv.hpp"
@@ -43,12 +44,12 @@ using namespace ndn::time;
 class RepoCommandParameter
 {
 public:
-  class Error : public ndn::Tlv::Error
+  class Error : public ndn::tlv::Error
   {
   public:
     explicit
     Error(const std::string& what)
-      : ndn::Tlv::Error(what)
+      : ndn::tlv::Error(what)
     {
     }
   };
@@ -435,6 +436,7 @@ RepoCommandParameter::wireDecode(const Block& wire)
     m_hasInterestLifetime = true;
     m_interestLifetime = milliseconds(readNonNegativeInteger(*val));
   }
+
 
 }
 

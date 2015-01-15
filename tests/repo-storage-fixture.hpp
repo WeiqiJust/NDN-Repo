@@ -21,7 +21,7 @@
 #define REPO_TESTS_REPO_STORAGE_FIXTURE_HPP
 
 #include "storage/repo-storage.hpp"
-#include "storage/sqlite-storage.hpp"
+
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
 
